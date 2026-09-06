@@ -66,17 +66,24 @@ export default function Home() {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: newMessages })
+        body: JSON.stringify({ messages: newMessages.map(m => ({ role: m.role, content: m.content })) })
       });
 
       if (!res.ok) {
         const errorText = await res.text();
-        setMessages(prev => [...prev, { id: 'error', role: 'assistant', content: `Error: ${errorText}` }]);
+        setMessages(prev => [...prev, { id: 'error-' + Date.now(), role: 'assistant', content: `Sorry, something went wrong. Please try again.` }]);
         setIsLoading(false);
         return;
       }
 
-      if (!res.body) throw new Error("No body returned");
+      if (!res.body) {
+        // Fallback: read as JSON if no streaming body
+        const data = await res.json();
+        const content = data.choices?.[0]?.message?.content || "Sorry, I couldn't generate a response.";
+        setMessages(prev => [...prev, { id: 'ai-' + Date.now(), role: 'assistant', content }]);
+        setIsLoading(false);
+        return;
+      }
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder("utf-8");
@@ -84,7 +91,8 @@ export default function Home() {
       let aiContent = "";
       let buffer = "";
 
-      setMessages(prev => [...prev, { id: 'ai-' + Date.now(), role: 'assistant', content: '' }]);
+      const aiMsgId = 'ai-' + Date.now();
+      setMessages(prev => [...prev, { id: aiMsgId, role: 'assistant', content: '' }]);
 
       while (!done) {
         const { value, done: doneReading } = await reader.read();
@@ -93,33 +101,53 @@ export default function Home() {
         
         buffer += chunkValue;
         const lines = buffer.split('\n');
-        buffer = lines.pop() || ""; // Keep the last incomplete line in the buffer
+        buffer = lines.pop() || "";
         
         for (const line of lines) {
           const trimmedLine = line.trim();
-          if (trimmedLine.startsWith('data: ')) {
-            const dataStr = trimmedLine.substring(6);
-            if (dataStr === '[DONE]') {
-               done = true;
-               break;
-            }
-            try {
-              const data = JSON.parse(dataStr);
-              const content = data.choices[0]?.delta?.content || "";
-              aiContent += content;
+          if (!trimmedLine.startsWith('data: ')) continue;
+          
+          const dataStr = trimmedLine.substring(6);
+          if (dataStr === '[DONE]') {
+            done = true;
+            break;
+          }
+          try {
+            const data = JSON.parse(dataStr);
+            const token = data.choices?.[0]?.delta?.content;
+            if (token) {
+              aiContent += token;
+              // Strip <think>...</think> blocks from qwen model
+              const cleaned = aiContent.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
               setMessages(prev => {
                 const updated = [...prev];
-                updated[updated.length - 1].content = aiContent;
-                return updated;
+                updated[updated.length - 1] = { ...updated[updated.length - 1], content: cleaned };
+                return [...updated];
               });
-            } catch(e) {
-              console.error("Stream parse error:", e);
             }
-          }
+          } catch {}
         }
+      }
+
+      // Final cleanup: strip any remaining open <think> tag
+      const finalContent = aiContent.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/<think>[\s\S]*/g, '').trim();
+      if (finalContent) {
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { ...updated[updated.length - 1], content: finalContent };
+          return [...updated];
+        });
+      } else if (!aiContent.replace(/<think>[\s\S]*/g, '').trim()) {
+        // If everything was inside think tags and nothing visible came through
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { ...updated[updated.length - 1], content: "I'm thinking about the best advice for you! Could you tell me more about your budget and interests?" };
+          return [...updated];
+        });
       }
     } catch (error) {
       console.error("Chat Error:", error);
+      setMessages(prev => [...prev, { id: 'error-' + Date.now(), role: 'assistant', content: "Sorry, there was a connection issue. Please try again." }]);
     } finally {
       setIsLoading(false);
     }
