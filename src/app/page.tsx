@@ -321,12 +321,12 @@ export default function Home() {
       </section>
 
       {/* Hero Dashboard Showcase (Scroll-Triggered Animation) */}
-      <section className="relative z-10 mt-16 mb-20 px-6">
+      <section className="relative z-10 mt-16 mb-20 px-4 md:px-6">
         <motion.div 
-          initial={{ opacity: 0, y: 100, scale: 0.95 }}
+          initial={{ opacity: 0, y: 20, scale: 0.98 }}
           whileInView={{ opacity: 1, y: 0, scale: 1 }}
-          viewport={{ once: true, margin: "-100px" }}
-          transition={{ duration: 1, ease: "easeOut" }}
+          viewport={{ once: true, margin: "-50px" }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
           className="max-w-5xl mx-auto bg-white rounded-3xl shadow-2xl shadow-slate-200/60 border border-slate-200 overflow-hidden flex flex-col md:flex-row"
         >
           {/* Real Person using AI Image Sidebar */}
@@ -374,10 +374,8 @@ export default function Home() {
               className="flex-1 flex flex-col gap-5 mb-4 max-h-[400px] overflow-y-auto pr-2 scroll-smooth"
             >
               {messages.map((m) => (
-                <motion.div 
+                <div 
                   key={m.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
                   className={`flex gap-3 max-w-[85%] ${m.role === 'user' ? 'self-end flex-row-reverse' : ''}`}
                 >
                   <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-1 shadow-sm ${m.role === 'user' ? 'bg-slate-200 text-slate-600' : 'bg-brand-green text-brand-gold'}`}>
@@ -386,25 +384,21 @@ export default function Home() {
                   <div className={`rounded-2xl p-4 text-sm shadow-sm leading-relaxed whitespace-pre-wrap ${m.role === 'user' ? 'bg-sky-500 rounded-tr-sm text-white' : 'bg-slate-50 border border-slate-100 rounded-tl-sm text-slate-700'}`}>
                     {m.content}
                   </div>
-                </motion.div>
+                </div>
               ))}
 
               {isLoading && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex gap-3 max-w-[85%]"
-                >
+                <div className="flex gap-3 max-w-[85%]">
                   <div className="w-7 h-7 rounded-full bg-brand-green flex items-center justify-center text-brand-gold text-[10px] font-bold flex-shrink-0 mt-1 shadow-sm">AI</div>
                   <div className="bg-slate-50 border border-slate-100 rounded-2xl rounded-tl-sm p-4 text-sm text-slate-500 shadow-sm flex items-center gap-3">
                     <span className="flex gap-1.5">
-                      <motion.span animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 1.5, repeat: Infinity, delay: 0 }} className="w-1.5 h-1.5 bg-slate-400 rounded-full"></motion.span>
-                      <motion.span animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }} className="w-1.5 h-1.5 bg-slate-400 rounded-full"></motion.span>
-                      <motion.span animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 1.5, repeat: Infinity, delay: 0.4 }} className="w-1.5 h-1.5 bg-slate-400 rounded-full"></motion.span>
+                      <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-pulse"></span>
+                      <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></span>
+                      <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-pulse" style={{animationDelay: '0.4s'}}></span>
                     </span>
                     Generating...
                   </div>
-                </motion.div>
+                </div>
               )}
             </div>
 
