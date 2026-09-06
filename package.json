@@ -9,9 +9,6 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@ai-sdk/groq": "^4.0.37",
-    "@ai-sdk/react": "^4.0.96",
-    "ai": "^7.0.93",
     "clsx": "^2.1.1",
     "framer-motion": "^13.2.0",
     "lucide-react": "^1.41.0",

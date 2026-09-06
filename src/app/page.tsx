@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useChat } from "@ai-sdk/react";
+
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   ArrowRight, 
@@ -40,17 +40,73 @@ export default function Home() {
   const [filterCapital, setFilterCapital] = useState<number | "All">("All");
   const [filterCategory, setFilterCategory] = useState<string>("All");
   const [filterAvailability, setFilterAvailability] = useState<string>("All");
+  const [messages, setMessages] = useState<{id: string, role: string, content: string}[]>([
+    {
+      id: 'welcome',
+      role: 'assistant',
+      content: "Welcome! Tell me your budget, location, and available time, and I'll generate a personalized UK business roadmap."
+    }
+  ]);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
-    api: '/api/chat',
-    initialMessages: [
-      {
-        id: 'welcome',
-        role: 'assistant',
-        content: "Welcome! Tell me your budget, location, and available time, and I'll generate a personalized UK business roadmap."
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || isLoading) return;
+    
+    const userMsg = { id: Date.now().toString(), role: 'user', content: input };
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
+    setInput("");
+    setIsLoading(true);
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: newMessages })
+      });
+
+      if (!res.body) throw new Error("No body returned");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let done = false;
+      let aiContent = "";
+
+      setMessages(prev => [...prev, { id: 'ai-' + Date.now(), role: 'assistant', content: '' }]);
+
+      while (!done) {
+        const { value, done: doneReading } = await reader.read();
+        done = doneReading;
+        const chunkValue = decoder.decode(value, { stream: true });
+        
+        const lines = chunkValue.split('\n');
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const dataStr = line.replace('data: ', '');
+            if (dataStr === '[DONE]') break;
+            try {
+              const data = JSON.parse(dataStr);
+              const content = data.choices[0]?.delta?.content || "";
+              aiContent += content;
+              setMessages(prev => {
+                const updated = [...prev];
+                updated[updated.length - 1].content = aiContent;
+                return updated;
+              });
+            } catch(e) {}
+          }
+        }
       }
-    ]
-  });
+    } catch (error) {
+      console.error("Chat Error:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
   

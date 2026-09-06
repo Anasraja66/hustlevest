@@ -1,11 +1,4 @@
-import { streamText } from 'ai';
-import { createGroq } from '@ai-sdk/groq';
 import { ventures } from '@/data/ventures';
-
-// Configure the Groq provider with the API key
-const groq = createGroq({
-  apiKey: process.env.GROQ_API_KEY,
-});
 
 // Build a context string from the ventures database
 const venturesContext = ventures.map(v => 
@@ -14,8 +7,8 @@ const venturesContext = ventures.map(v =>
    Capital Required: £${v.capital}
    Break-even: ${v.breakEven}
    Description: ${v.description}
-   Shopping List Total: £${v.shoppingListTotal}
-   Mandatory Rules: ${v.rules.filter(r => r.type === 'Mandatory').map(r => r.text).join(', ')}`
+   Shopping List Items: ${v.shoppingList.length}
+   Rules: ${v.rules.join(', ')}`
 ).join('\n\n');
 
 const SYSTEM_PROMPT = `You are the "Hustle Vest AI Copilot". You are an expert AI business planner for micro-businesses in the UK.
@@ -33,15 +26,36 @@ IMPORTANT RULES (RAG-LIKE BEHAVIOR):
 export async function POST(req: Request) {
   try {
     const { messages } = await req.json();
+    const groqKey = process.env.GROQ_API_KEY;
 
-    const result = await streamText({
-      model: groq('llama-3.1-8b-instant'),
-      system: SYSTEM_PROMPT,
-      messages,
-      temperature: 0.3, // Low temperature for more factual/focused responses
+    if (!groqKey) {
+      return new Response(JSON.stringify({ error: 'Missing Groq API Key.' }), { status: 500 });
+    }
+
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${groqKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'llama-3.1-8b-instant',
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          ...messages
+        ],
+        temperature: 0.3,
+        stream: true,
+      })
     });
 
-    return result.toDataStreamResponse();
+    return new Response(response.body, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      }
+    });
   } catch (error) {
     console.error('Groq API Error:', error);
     return new Response(JSON.stringify({ error: 'Failed to connect to AI engine.' }), { status: 500 });
