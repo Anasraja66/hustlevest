@@ -69,12 +69,20 @@ export default function Home() {
         body: JSON.stringify({ messages: newMessages })
       });
 
+      if (!res.ok) {
+        const errorText = await res.text();
+        setMessages(prev => [...prev, { id: 'error', role: 'assistant', content: `Error: ${errorText}` }]);
+        setIsLoading(false);
+        return;
+      }
+
       if (!res.body) throw new Error("No body returned");
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder("utf-8");
       let done = false;
       let aiContent = "";
+      let buffer = "";
 
       setMessages(prev => [...prev, { id: 'ai-' + Date.now(), role: 'assistant', content: '' }]);
 
@@ -83,11 +91,18 @@ export default function Home() {
         done = doneReading;
         const chunkValue = decoder.decode(value, { stream: true });
         
-        const lines = chunkValue.split('\n');
+        buffer += chunkValue;
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ""; // Keep the last incomplete line in the buffer
+        
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const dataStr = line.replace('data: ', '');
-            if (dataStr === '[DONE]') break;
+          const trimmedLine = line.trim();
+          if (trimmedLine.startsWith('data: ')) {
+            const dataStr = trimmedLine.substring(6);
+            if (dataStr === '[DONE]') {
+               done = true;
+               break;
+            }
             try {
               const data = JSON.parse(dataStr);
               const content = data.choices[0]?.delta?.content || "";
@@ -97,7 +112,9 @@ export default function Home() {
                 updated[updated.length - 1].content = aiContent;
                 return updated;
               });
-            } catch(e) {}
+            } catch(e) {
+              console.error("Stream parse error:", e);
+            }
           }
         }
       }
@@ -171,7 +188,7 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-32 pb-0 px-6 max-w-5xl mx-auto text-center relative z-20">
+      <section className="pt-8 md:pt-32 pb-0 px-6 max-w-5xl mx-auto text-center relative z-20">
         
 
 
