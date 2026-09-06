@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useChat } from "ai/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   ArrowRight, 
@@ -39,6 +40,25 @@ export default function Home() {
   const [filterCapital, setFilterCapital] = useState<number | "All">("All");
   const [filterCategory, setFilterCategory] = useState<string>("All");
   const [filterAvailability, setFilterAvailability] = useState<string>("All");
+
+  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+    api: '/api/chat',
+    initialMessages: [
+      {
+        id: 'welcome',
+        role: 'assistant',
+        content: "Welcome! Tell me your budget, location, and available time, and I'll generate a personalized UK business roadmap."
+      }
+    ]
+  });
+
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   const filteredVentures = ventures.filter(v => 
     (filterCapital === "All" || v.capital === filterCapital) &&
@@ -208,22 +228,27 @@ export default function Home() {
           transition={{ duration: 1, ease: "easeOut" }}
           className="max-w-5xl mx-auto bg-white rounded-3xl shadow-2xl shadow-slate-200/60 border border-slate-200 overflow-hidden flex flex-col md:flex-row"
         >
-          {/* Mockup Sidebar */}
-          <div className="w-64 bg-slate-50/50 border-r border-slate-100 p-6 hidden md:block">
-            <div className="flex items-center gap-2 mb-10">
-              <div className="w-6 h-6 rounded bg-brand-green"></div>
-              <div className="h-4 w-20 bg-slate-200 rounded"></div>
+          {/* Real Person using AI Image Sidebar */}
+          <div className="w-64 border-r border-slate-100 hidden md:block relative overflow-hidden bg-slate-900 flex-shrink-0">
+            <img 
+              src="https://images.unsplash.com/photo-1531403009284-440f080d1e12?q=80&w=600&auto=format&fit=crop" 
+              className="absolute inset-0 w-full h-full object-cover opacity-90 mix-blend-overlay" 
+              alt="Person using AI Platform" 
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"></div>
+            
+            <div className="absolute top-6 left-6">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded bg-brand-green flex items-center justify-center">
+                  <span className="text-brand-gold font-bold text-xs">H</span>
+                </div>
+                <div className="font-bold text-white text-sm">Hustle Vest</div>
+              </div>
             </div>
-            <div className="space-y-6">
-              <div className="space-y-3">
-                <div className="h-3 w-full bg-slate-200 rounded"></div>
-                <div className="h-3 w-4/5 bg-slate-100 rounded"></div>
-                <div className="h-3 w-5/6 bg-slate-100 rounded"></div>
-              </div>
-              <div className="space-y-3 pt-6 border-t border-slate-100">
-                <div className="h-3 w-3/4 bg-slate-200 rounded"></div>
-                <div className="h-3 w-full bg-slate-100 rounded"></div>
-              </div>
+
+            <div className="absolute bottom-6 left-6 right-6">
+              <span className="bg-sky-500 text-white text-[10px] font-bold px-2 py-1 rounded mb-3 inline-block shadow-lg shadow-sky-500/30">AI Copilot</span>
+              <p className="text-white text-xs font-medium leading-relaxed">Generating UK supplier list & compliance steps in real-time...</p>
             </div>
           </div>
           {/* Mockup Main - AI Planner Chat */}
@@ -243,84 +268,70 @@ export default function Home() {
             </div>
             
             {/* Chat Messages */}
-            <div className="flex-1 flex flex-col gap-5 mb-4">
-              {/* AI Greeting */}
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-                className="flex gap-3 max-w-[85%]"
-              >
-                <div className="w-7 h-7 rounded-full bg-brand-green flex items-center justify-center text-brand-gold text-[10px] font-bold flex-shrink-0 mt-1 shadow-sm">AI</div>
-                <div className="bg-slate-50 border border-slate-100 rounded-2xl rounded-tl-sm p-4 text-sm text-slate-600 shadow-sm leading-relaxed">
-                  Welcome! Tell me your budget, location, and available time, and I'll generate a personalized launch roadmap.
-                </div>
-              </motion.div>
-              
-              {/* User Message */}
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: 0.8 }}
-                className="flex gap-3 max-w-[85%] self-end flex-row-reverse"
-              >
-                <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 text-[10px] font-bold flex-shrink-0 mt-1 shadow-sm">U</div>
-                <div className="bg-sky-500 rounded-2xl rounded-tr-sm p-4 text-sm text-white shadow-sm leading-relaxed">
-                  I have £300, live in Liverpool, and have 8 hours on weekends.
-                </div>
-              </motion.div>
+            <div 
+              ref={chatContainerRef}
+              className="flex-1 flex flex-col gap-5 mb-4 max-h-[400px] overflow-y-auto pr-2 scroll-smooth"
+            >
+              {messages.map((m) => (
+                <motion.div 
+                  key={m.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`flex gap-3 max-w-[85%] ${m.role === 'user' ? 'self-end flex-row-reverse' : ''}`}
+                >
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-1 shadow-sm ${m.role === 'user' ? 'bg-slate-200 text-slate-600' : 'bg-brand-green text-brand-gold'}`}>
+                    {m.role === 'user' ? 'U' : 'AI'}
+                  </div>
+                  <div className={`rounded-2xl p-4 text-sm shadow-sm leading-relaxed whitespace-pre-wrap ${m.role === 'user' ? 'bg-sky-500 rounded-tr-sm text-white' : 'bg-slate-50 border border-slate-100 rounded-tl-sm text-slate-700'}`}>
+                    {m.content}
+                  </div>
+                </motion.div>
+              ))}
 
-              {/* AI Generating */}
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: 1.4 }}
-                className="flex gap-3 max-w-[85%]"
-              >
-                <div className="w-7 h-7 rounded-full bg-brand-green flex items-center justify-center text-brand-gold text-[10px] font-bold flex-shrink-0 mt-1 shadow-sm">AI</div>
-                <div className="bg-slate-50 border border-slate-100 rounded-2xl rounded-tl-sm p-4 text-sm text-slate-500 shadow-sm flex items-center gap-3">
-                  <span className="flex gap-1.5">
-                    <motion.span animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 1.5, repeat: Infinity, delay: 0 }} className="w-1.5 h-1.5 bg-slate-400 rounded-full"></motion.span>
-                    <motion.span animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }} className="w-1.5 h-1.5 bg-slate-400 rounded-full"></motion.span>
-                    <motion.span animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 1.5, repeat: Infinity, delay: 0.4 }} className="w-1.5 h-1.5 bg-slate-400 rounded-full"></motion.span>
-                  </span>
-                  Generating local venture...
-                </div>
-              </motion.div>
+              {isLoading && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex gap-3 max-w-[85%]"
+                >
+                  <div className="w-7 h-7 rounded-full bg-brand-green flex items-center justify-center text-brand-gold text-[10px] font-bold flex-shrink-0 mt-1 shadow-sm">AI</div>
+                  <div className="bg-slate-50 border border-slate-100 rounded-2xl rounded-tl-sm p-4 text-sm text-slate-500 shadow-sm flex items-center gap-3">
+                    <span className="flex gap-1.5">
+                      <motion.span animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 1.5, repeat: Infinity, delay: 0 }} className="w-1.5 h-1.5 bg-slate-400 rounded-full"></motion.span>
+                      <motion.span animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }} className="w-1.5 h-1.5 bg-slate-400 rounded-full"></motion.span>
+                      <motion.span animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 1.5, repeat: Infinity, delay: 0.4 }} className="w-1.5 h-1.5 bg-slate-400 rounded-full"></motion.span>
+                    </span>
+                    Generating...
+                  </div>
+                </motion.div>
+              )}
             </div>
 
             {/* Input Area (Floating Omnibox Style) */}
             <div className="mt-auto pt-8 pb-2 relative z-20">
-              <div className="bg-white border border-slate-200 rounded-full p-2 flex items-center gap-2 shadow-[0_8px_30px_rgb(0,0,0,0.08)] max-w-2xl mx-auto w-full transition-shadow hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
+              <form onSubmit={handleSubmit} className="bg-white border border-slate-200 rounded-full p-2 flex items-center gap-2 shadow-[0_8px_30px_rgb(0,0,0,0.08)] max-w-2xl mx-auto w-full transition-shadow hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
                 
                 {/* Left Plus Button */}
-                <button className="w-9 h-9 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors flex-shrink-0 ml-1">
+                <button type="button" className="w-9 h-9 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors flex-shrink-0 ml-1">
                   <Plus size={16} />
                 </button>
                 
                 {/* Input Field */}
                 <input 
                   type="text" 
-                  disabled 
-                  placeholder="Tell the AI your budget, location, and time..." 
+                  value={input}
+                  onChange={handleInputChange}
+                  placeholder="Ask the AI about budgets, regulations, or ideas..." 
                   className="flex-1 bg-transparent text-sm font-medium px-2 outline-none text-slate-700 placeholder:text-slate-400" 
+                  disabled={isLoading}
                 />
                 
-                {/* Voice Button */}
-                <button className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-full border border-slate-200 text-xs font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors flex-shrink-0">
-                  <Mic size={14} />
-                  <span>Voice</span>
-                </button>
-
                 {/* Send Button */}
-                <button className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-white hover:bg-black transition-all shadow-md flex-shrink-0 mr-0.5 group">
+                <button type="submit" disabled={isLoading} className="w-10 h-10 rounded-full bg-slate-900 disabled:bg-slate-400 flex items-center justify-center text-white hover:bg-black transition-all shadow-md flex-shrink-0 mr-0.5 group cursor-pointer">
                   <ArrowUp size={18} className="group-hover:-translate-y-0.5 transition-transform" />
                 </button>
                 
-              </div>
+              </form>
             </div>
             
           </div>
